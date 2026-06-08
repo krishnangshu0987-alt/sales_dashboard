@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SalesViz — Annual Sales Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="noise-overlay" aria-hidden="true"></div>
+  <div class="toast" id="toast" aria-live="polite"></div>
+
+  <!-- Month detail modal -->
+  <div class="modal-backdrop" id="modal-backdrop">
+    <div class="modal" id="month-modal" role="dialog" aria-modal="true">
+      <button class="modal__close" id="modal-close" aria-label="Close">&#x2715;</button>
+      <div class="modal__eyebrow" id="modal-eyebrow"></div>
+      <h2 class="modal__title" id="modal-title"></h2>
+      <div class="modal__grid" id="modal-grid"></div>
+      <canvas class="modal__sparkline" id="modal-sparkline" height="60"></canvas>
+    </div>
+  </div>
+
+  <header class="navbar">
+    <div class="navbar__brand">
+      <span class="navbar__logo">&#9672;</span>
+      <span class="navbar__title">SalesViz</span>
+    </div>
+    <nav class="navbar__links">
+      <a href="#" class="nav-link nav-link--active">Dashboard</a>
+      <a href="#" class="nav-link">Reports</a>
+      <a href="#" class="nav-link">Settings</a>
+    </nav>
+    <div class="navbar__controls">
+      <div class="search-box">
+        <span class="search-box__icon">&#8981;</span>
+        <input class="search-box__input" id="search-input" type="text" placeholder="Search months&#8230;" autocomplete="off" />
+      </div>
+      <button class="btn-export" id="btn-export" title="Export CSV">&#x2193; CSV</button>
+      <span class="badge badge--live">&#x25CF; Live</span>
+    </div>
+  </header>
+
+  <main class="main-content">
+
+    <section class="hero-section">
+      <div class="hero-section__eyebrow">Annual Performance Overview</div>
+      <h1 class="hero-section__heading">Sales <em>Intelligence</em></h1>
+      <p class="hero-section__sub">Track, compare, and analyse revenue across 2022 &ndash; 2024.</p>
+    </section>
+
+    <!-- Year tabs + compare toggle -->
+    <section class="controls-row">
+      <div class="year-tabs" role="tablist" aria-label="Select year">
+        <button class="year-tab" role="tab" data-year="2022" aria-selected="false">2022</button>
+        <button class="year-tab" role="tab" data-year="2023" aria-selected="false">2023</button>
+        <button class="year-tab year-tab--active" role="tab" data-year="2024" aria-selected="true">2024</button>
+      </div>
+      <div class="compare-toggle">
+        <label class="toggle-label" for="compare-toggle">Compare all years</label>
+        <button class="toggle-btn" id="compare-toggle" role="switch" aria-checked="false">
+          <span class="toggle-btn__knob"></span>
+        </button>
+      </div>
+    </section>
+
+    <!-- KPI Cards -->
+    <section class="kpi-grid" aria-label="Key Performance Indicators">
+      <article class="kpi-card kpi-card--accent" tabindex="0">
+        <div class="kpi-card__label">Total Revenue</div>
+        <div class="kpi-card__value" id="kpi-total">&#8212;</div>
+        <div class="kpi-card__delta" id="kpi-delta-total"></div>
+        <canvas class="kpi-card__spark" id="spark-total" height="36"></canvas>
+      </article>
+      <article class="kpi-card" tabindex="0">
+        <div class="kpi-card__label">Best Month</div>
+        <div class="kpi-card__value" id="kpi-best-month">&#8212;</div>
+        <div class="kpi-card__delta" id="kpi-best-value"></div>
+        <canvas class="kpi-card__spark" id="spark-best" height="36"></canvas>
+      </article>
+      <article class="kpi-card" tabindex="0">
+        <div class="kpi-card__label">Avg Monthly Sales</div>
+        <div class="kpi-card__value" id="kpi-avg">&#8212;</div>
+        <div class="kpi-card__delta" id="kpi-avg-delta"></div>
+        <canvas class="kpi-card__spark" id="spark-avg" height="36"></canvas>
+      </article>
+      <article class="kpi-card" tabindex="0">
+        <div class="kpi-card__label">YoY Growth</div>
+        <div class="kpi-card__value" id="kpi-growth">&#8212;</div>
+        <div class="kpi-card__delta" id="kpi-growth-label"></div>
+        <canvas class="kpi-card__spark" id="spark-growth" height="36"></canvas>
+      </article>
+    </section>
+
+    <!-- Charts -->
+    <section class="charts-section">
+
+      <!-- Bar chart panel -->
+      <div class="chart-panel chart-panel--wide">
+        <div class="chart-panel__header">
+          <div>
+            <div class="chart-panel__title">Monthly Revenue</div>
+            <div class="chart-panel__sub" id="chart-year-label">2024 &mdash; click any bar for details</div>
+          </div>
+          <div class="chart-panel__actions">
+            <div class="threshold-filter">
+              <label class="threshold-filter__label" for="threshold-slider">
+                Threshold: <span id="threshold-display" class="threshold-value">off</span>
+              </label>
+              <input class="threshold-filter__slider" id="threshold-slider" type="range" min="0" max="600" step="10" value="0" />
+              <button class="btn-clear-threshold" id="btn-clear-threshold" title="Clear threshold">&#x2715;</button>
+            </div>
+            <button class="btn-icon" id="btn-save-bar" title="Save chart as PNG">&#x2B07;</button>
+          </div>
+        </div>
+        <div class="chart-panel__body">
+          <canvas id="bar-chart" role="img" aria-label="Monthly bar chart"></canvas>
+        </div>
+        <div class="hover-stats" id="hover-stats" aria-hidden="true">
+          <span class="hover-stats__item" id="hover-month"></span>
+          <span class="hover-stats__item" id="hover-rev"></span>
+          <span class="hover-stats__item" id="hover-units"></span>
+          <span class="hover-stats__item" id="hover-aov"></span>
+        </div>
+      </div>
+
+      <!-- Line chart panel -->
+      <div class="chart-panel">
+        <div class="chart-panel__header">
+          <div>
+            <div class="chart-panel__title">Sales Trend</div>
+            <div class="chart-panel__sub">3-Year Overlay</div>
+          </div>
+          <div class="year-checkboxes" id="year-checkboxes">
+            <label class="year-check"><input type="checkbox" value="2022" checked /> 2022</label>
+            <label class="year-check"><input type="checkbox" value="2023" checked /> 2023</label>
+            <label class="year-check"><input type="checkbox" value="2024" checked /> 2024</label>
+          </div>
+        </div>
+        <div class="chart-panel__body">
+          <canvas id="line-chart" role="img" aria-label="3-year sales trend line chart"></canvas>
+        </div>
+      </div>
+
+      <!-- Pie chart panel -->
+      <div class="chart-panel">
+        <div class="chart-panel__header">
+          <div>
+            <div class="chart-panel__title">Category Split</div>
+            <div class="chart-panel__sub" id="pie-year-label">2024</div>
+          </div>
+          <div class="chart-switcher">
+            <button class="chart-switch-btn chart-switch-btn--active" data-type="doughnut">Donut</button>
+            <button class="chart-switch-btn" data-type="pie">Pie</button>
+            <button class="chart-switch-btn" data-type="bar">Bar</button>
+          </div>
+        </div>
+        <div class="chart-panel__body chart-panel__body--short">
+          <canvas id="pie-chart" role="img" aria-label="Sales category distribution"></canvas>
+        </div>
+        <div class="category-legend" id="category-legend"></div>
+      </div>
+
+    </section>
+
+    <!-- Table -->
+    <section class="table-section">
+      <div class="table-section__header">
+        <div class="chart-panel__title">Monthly Breakdown</div>
+        <div class="table-controls">
+          <span class="table-year-badge" id="table-year-badge">2024</span>
+          <div class="table-filter-btns">
+            <button class="tfilter-btn tfilter-btn--active" data-filter="all">All</button>
+            <button class="tfilter-btn" data-filter="up">&#x25B2; Growth</button>
+            <button class="tfilter-btn" data-filter="down">&#x25BC; Decline</button>
+            <button class="tfilter-btn" data-filter="top3">Top 3</button>
+          </div>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table class="data-table" id="data-table">
+          <thead>
+            <tr>
+              <th class="sortable" data-col="month">Month <span class="sort-icon">&#x21D5;</span></th>
+              <th class="sortable" data-col="revenue">Revenue <span class="sort-icon">&#x21D5;</span></th>
+              <th class="sortable" data-col="units">Units Sold <span class="sort-icon">&#x21D5;</span></th>
+              <th class="sortable" data-col="aov">Avg Order Value <span class="sort-icon">&#x21D5;</span></th>
+              <th class="sortable" data-col="delta">vs Prior Month <span class="sort-icon">&#x21D5;</span></th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <span>SalesViz &copy; 2024</span>
+    <span>Mock data inspired by Kaggle retail datasets</span>
+  </footer>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
